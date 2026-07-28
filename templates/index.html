@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scam Detector</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>&#x1F6E1; Scam Detector</h1>
+        <p class="subtitle">Paste a suspicious URL or WhatsApp message below</p>
+        <textarea id="userInput" placeholder="http://paytm-kyc.verify-now.xyz or paste a message..." rows="4"></textarea>
+        <button id="checkBtn" onclick="checkInput()">Check Now</button>
+        <div id="loading" class="hidden">Analysing...</div>
+        <div id="results" class="hidden">
+            <div id="verdict-badge"></div>
+            <div class="score-row">
+                <span>Risk Score:</span>
+                <span id="score-num"></span>
+            </div>
+            <div class="score-bar">
+                <div id="score-fill"></div>
+            </div>
+            <ul id="reasons-list"></ul>
+            <div id="ml-verdict"></div>
+        </div>
+    </div>
+    <script src="/static/script.js"></script>
+</body>
+</html>

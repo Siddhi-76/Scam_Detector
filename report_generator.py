@@ -4,7 +4,12 @@ Generates detailed threat analysis reports in PDF format.
 """
 
 from datetime import datetime
+import os
+import uuid
 from fpdf import FPDF
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
 
 def sanitize_text(text):
     """Ensure text only contains characters supported by FPDF core fonts (latin-1)."""
@@ -12,6 +17,38 @@ def sanitize_text(text):
         return ""
     return str(text).encode('latin-1', 'replace').decode('latin-1')
 
+def create_risk_chart(score, ml_confidence):
+    """Generates a donut chart representing AI scam probability and saves it as a temporary PNG."""
+    try:
+        if "(" in str(ml_confidence):
+            ml_prob = float(str(ml_confidence).replace("%","").split("(")[-1].replace(")",""))
+        else:
+            ml_prob = float(str(ml_confidence).replace("%",""))
+    except:
+        ml_prob = float(score)
+
+    labels = ['Scam Probability', 'Safe Probability']
+    sizes = [ml_prob, 100 - ml_prob]
+    
+    if ml_prob > 50:
+        colors = ['#dc2626', '#d1d5db']  # Red for scam
+    else:
+        colors = ['#d1d5db', '#059669']  # Green for safe
+        
+    fig, ax = plt.subplots(figsize=(4.5, 4.5))
+    wedges, texts, autotexts = ax.pie(
+        sizes, colors=colors, startangle=90, 
+        autopct='%1.1f%%', textprops={'color':"w", 'weight':'bold', 'fontsize': 14},
+        wedgeprops=dict(width=0.4, edgecolor='w')
+    )
+    plt.setp(autotexts, size=13, weight="bold")
+    ax.axis('equal')  
+    plt.title("Neural Network / AI Confidence", fontsize=16, weight="bold", pad=20, color="#2c3e50")
+    
+    filename = f"temp_chart_{uuid.uuid4().hex}.png"
+    plt.savefig(filename, transparent=True, dpi=200, bbox_inches='tight')
+    plt.close(fig)
+    return filename
 
 class NigraniReport(FPDF):
     """Custom PDF class with NIGRANI branding."""
@@ -119,6 +156,37 @@ class NigraniReport(FPDF):
         self.multi_cell(0, 7, text)
         self.ln(1)
 
+    def add_executive_conclusion(self, analysis_result, score):
+        self.add_section_title("Executive Conclusion")
+        self.set_font("Helvetica", "", 10)
+        self.set_text_color(60, 60, 80)
+        
+        ml_confidence = analysis_result.get("dl_confidence") or analysis_result.get("ml_verdict")
+        reasons = analysis_result.get("reasons", [])
+        input_type = analysis_result.get("type", "url")
+        
+        # Build paragraph dynamically
+        if score >= 60:
+            conclusion = f"Based on a comprehensive analysis utilizing both structural heuristics and advanced machine learning, this {input_type} is classified as DANGEROUS."
+            if ml_confidence:
+                conclusion += f" The neural network strongly indicates malicious intent with an AI confidence of {sanitize_text(str(ml_confidence))}."
+            if reasons:
+                conclusion += f" The primary threat indicators identified include {sanitize_text(reasons[0].lower())}."
+            conclusion += " It is highly recommended to block this source and avoid any interaction immediately to prevent potential financial or data loss."
+        elif score >= 30:
+            conclusion = f"The analysis of this {input_type} reveals SUSPICIOUS characteristics. While it may not be a confirmed scam, irregular patterns have been detected."
+            if reasons:
+                 conclusion += f" Specifically, {sanitize_text(reasons[0].lower())} was noted as anomalous."
+            conclusion += " Proceed with extreme caution and manually verify the sender or entity before providing any sensitive information."
+        else:
+            conclusion = f"Our deep learning models and heuristic checks found no malicious patterns in this {input_type}. It is classified as SAFE."
+            if ml_confidence:
+                conclusion += f" The AI confirms genuine structural integrity."
+            conclusion += " However, always exercise standard digital hygiene and remain vigilant against newly emerging threats."
+            
+        self.multi_cell(0, 6, conclusion)
+        self.ln(6)
+
 
 def generate_report(user_input, analysis_result, features=None):
     """
@@ -151,11 +219,17 @@ def generate_report(user_input, analysis_result, features=None):
 
     # ── AI Machine Learning Analysis ───────────────────────
     ml_confidence = analysis_result.get("dl_confidence") or analysis_result.get("ml_verdict")
+    chart_filename = None
     if ml_confidence:
         pdf.add_section_title("AI Machine Learning Analysis")
+        
+        chart_filename = create_risk_chart(score, ml_confidence)
+        y_before = pdf.get_y()
+        # Embed the generated donut chart to the right of the page
+        pdf.image(chart_filename, x=135, y=y_before - 20, w=60)
+        
         pdf.set_font("Courier", "B", 10)
         pdf.set_text_color(255, 255, 255)
-        
         is_scam = "SCAM" in str(ml_confidence).upper() or float(str(ml_confidence).replace("%","").split("(")[-1].replace(")","")) > 50 if "(" in str(ml_confidence) else ("%" in str(ml_confidence) and float(str(ml_confidence).replace("%","")) > 50)
         
         if is_scam:
@@ -163,8 +237,11 @@ def generate_report(user_input, analysis_result, features=None):
         else:
             pdf.set_fill_color(5, 150, 105)  # Green
             
-        pdf.cell(0, 10, f"  Neural Network / ML Confidence: {sanitize_text(str(ml_confidence))}  ", fill=True, new_x="LMARGIN", new_y="NEXT")
-        pdf.ln(6)
+        pdf.cell(115, 10, f"  Neural Network / ML Confidence: {sanitize_text(str(ml_confidence))}  ", fill=True, new_x="LMARGIN", new_y="NEXT")
+        pdf.ln(30) # Add space to accommodate the graph height
+        
+    # ── Executive Conclusion ───────────────────────────────
+    pdf.add_executive_conclusion(analysis_result, score)
 
     # ── Threat Indicators ──────────────────────────────────
     reasons = analysis_result.get("reasons", [])
@@ -176,11 +253,12 @@ def generate_report(user_input, analysis_result, features=None):
         pdf.add_safe_note("No threat indicators detected. This input appears safe.")
     pdf.ln(4)
 
-    # ── Feature Breakdown (for URLs) ───────────────────────
+    # ── Feature Breakdown ──────────────────────────────────
     if features:
         pdf.add_section_title("Detailed Feature Breakdown")
 
         feature_descriptions = {
+            # URL Features
             "uses_https": "HTTPS Encryption (1 = Encrypted, 0 = Plain Text)",
             "url_length": "URL Length (total characters)",
             "subdomain_count": "Subdomain Count (nested domain levels)",
@@ -193,18 +271,44 @@ def generate_report(user_input, analysis_result, features=None):
             "is_url_shortener": "URL Shortener (1 = Shortened URL)",
             "closest_brand": "Closest Brand Match",
             "brand_distance": "Brand Levenshtein Distance",
+            
+            # Message Features
+            "urgency_count": "Urgency Keywords Detected",
+            "urgency_words": "Matched Urgency Keywords",
+            "reward_count": "Reward/Prize Keywords Detected",
+            "reward_words": "Matched Reward Keywords",
+            "kyc_count": "KYC/OTP Keywords Detected",
+            "kyc_words": "Matched KYC Keywords",
+            "caps_ratio": "Capitalization Ratio (Abuse)",
+            "hinglish_count": "Hinglish Scam Keywords Detected",
+            "hinglish_words": "Matched Hinglish Keywords",
+            "exclamations": "Exclamation Marks Count",
+            "has_phone": "Indian Phone Number Detected",
+            "has_short_url": "Embedded Shortened URL Detected",
         }
 
         for key, value in features.items():
-            if key in ("url",):
-                continue
-            desc = feature_descriptions.get(key, key)
+            if key in ("url",) or (isinstance(value, list) and not value):
+                continue  # Skip empty lists and redundant keys
+            
+            # Format lists into strings
+            if isinstance(value, list):
+                value_str = ", ".join(value)
+            elif isinstance(value, float):
+                value_str = f"{value:.2f}"
+            else:
+                value_str = str(value)
+                
+            desc = feature_descriptions.get(key, key.replace("_", " ").title())
             pdf.set_font("Helvetica", "B", 9)
             pdf.set_text_color(60, 60, 80)
-            pdf.cell(50, 6, key)
+            pdf.cell(60, 6, key)
             pdf.set_font("Courier", "B", 9)
             pdf.set_text_color(108, 99, 255)
-            pdf.cell(20, 6, sanitize_text(value))
+            # Truncate value if it's too long
+            if len(value_str) > 30:
+                value_str = value_str[:27] + "..."
+            pdf.cell(40, 6, sanitize_text(value_str))
             pdf.set_font("Helvetica", "", 8)
             pdf.set_text_color(120, 120, 140)
             pdf.cell(0, 6, desc, new_x="LMARGIN", new_y="NEXT")
@@ -263,6 +367,25 @@ def generate_report(user_input, analysis_result, features=None):
     pdf.multi_cell(0, 5, about_text)
     pdf.ln(6)
 
+    # ── Raw Diagnostic Data ────────────────────────────────
+    pdf.add_section_title("Raw Diagnostic Data")
+    pdf.set_font("Courier", "", 8)
+    pdf.set_text_color(80, 80, 80)
+    pdf.set_fill_color(245, 245, 245)
+    
+    import json
+    raw_data = {
+        "analysis_result": analysis_result,
+        "extracted_features": features if features else {}
+    }
+    # Create formatted JSON string, replacing special chars just in case
+    raw_json_str = json.dumps(raw_data, indent=2)
+    # Sanitize for FPDF (only latin-1 characters allowed)
+    raw_json_str = sanitize_text(raw_json_str)
+    
+    pdf.multi_cell(0, 4, raw_json_str, border=1, fill=True)
+    pdf.ln(6)
+
     # ── Disclaimer ─────────────────────────────────────────
     pdf.set_fill_color(255, 250, 240)
     pdf.set_font("Helvetica", "I", 8)
@@ -274,7 +397,17 @@ def generate_report(user_input, analysis_result, features=None):
     )
     pdf.multi_cell(0, 5, disclaimer, fill=True, border=1)
 
-    return bytes(pdf.output())
+    # Generate PDF bytes
+    pdf_bytes = bytes(pdf.output())
+    
+    # Clean up the temporary chart image if it exists
+    if chart_filename and os.path.exists(chart_filename):
+        try:
+            os.remove(chart_filename)
+        except:
+            pass
+
+    return pdf_bytes
 
 
 if __name__ == "__main__":

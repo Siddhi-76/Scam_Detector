@@ -70,6 +70,7 @@ def check():
         msg_features = extract_message_features(user_input)
         result = message_risk_score(msg_features)
         result["type"] = "message"
+        result["features"] = msg_features
 
     # Add ML model prediction if available
     if is_url and MODEL and features:
@@ -142,6 +143,34 @@ def report():
         as_attachment=True,
         download_name=f"NIGRANI_Report_{analysis_result.get('verdict', 'scan')}.pdf",
     )
+
+
+@app.route("/report_phishing", methods=["POST"])
+def report_phishing():
+    """Log a reported phishing attempt to a CSV file for future training."""
+    data = request.get_json()
+    user_input = data.get("input", "").strip()
+    
+    if not user_input:
+        return jsonify({"error": "No input provided"}), 400
+        
+    os.makedirs("data", exist_ok=True)
+    report_file = "data/reported_threats.csv"
+    
+    # Check if file exists to write headers
+    file_exists = os.path.isfile(report_file)
+    
+    with open(report_file, "a", encoding="utf-8") as f:
+        if not file_exists:
+            f.write("timestamp,input_text\n")
+        import datetime
+        timestamp = datetime.datetime.now().isoformat()
+        # Clean input for CSV
+        clean_input = user_input.replace('"', '""').replace('\n', ' ')
+        f.write(f'{timestamp},"{clean_input}"\n')
+        
+    return jsonify({"success": True, "message": "Threat successfully logged."})
+
 
 
 if __name__ == "__main__":

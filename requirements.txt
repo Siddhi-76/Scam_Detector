@@ -7,4 +7,5 @@ numpy
 scipy
 fpdf2
 python-dotenv
-gunicorn==21.2.0matplotlib
+gunicorn==21.2.0
+matplotlib

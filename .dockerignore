@@ -1,0 +1,29 @@
+# Python & Cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Environments
+venv/
+.venv/
+env/
+ENV/
+
+# Git
+.git/
+.gitignore
+
+# IDEs & Editors
+.vscode/
+.idea/
+.gemini/
+
+# Testing & Logs
+.pytest_cache/
+*.log
+*.pdf
+evaluation_report.csv
+
+# Environment Variables
+.env

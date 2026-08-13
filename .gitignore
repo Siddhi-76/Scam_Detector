@@ -1,1 +1,16 @@
-venv/ __pycache__/ *.pyc .env model.pkl *.csv .DS_Store
+# Environment variables
+.env
+
+# Virtual Environment
+venv/
+
+# Python Cache
+__pycache__/
+*.pyc
+
+# ML Models & Data
+model.pkl
+*.csv
+
+# OS specific files
+.DS_Store

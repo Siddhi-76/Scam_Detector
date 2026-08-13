@@ -229,15 +229,48 @@ python app.py
 
 # 🚀 Running the Project
 
+### Option 1: Native Python Localhost Execution
+
 Once the Flask server starts successfully, open your browser and visit:
 
 ```text
-http://127.0.0.1:5000
+http://localhost:5000  or  http://127.0.0.1:5000
 ```
 
-The application will allow users to analyse suspicious URLs and scam messages through an interactive interface.
+---
+
+### Option 2: 🐳 Running with Docker Desktop
+
+1. Make sure **Docker Desktop** is open and running on your system.
+2. Open your terminal in the project directory and run:
+
+```bash
+docker compose up --build
+```
+
+Alternatively, you can build and run using standard Docker commands:
+
+```bash
+# Build the Docker image
+docker build -t scam-detector .
+
+# Run the container mapping port 5000
+docker run -p 5000:5000 --name scam_detector_app scam-detector
+```
+
+3. Open your browser and navigate to:
+
+```text
+http://localhost:5000
+```
+
+To stop the Docker container:
+```bash
+docker compose down
+```
 
 ---
+
 
 # 🔍 Detection Workflow
 

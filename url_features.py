@@ -59,7 +59,8 @@ def url_length(url):
 
 def is_url_shortener(url):
     """Returns 1 if the URL uses a known shortener (bit.ly, t.co, etc.), else 0."""
-    host = urlparse(url).netloc.lower().replace("www.", "").split(":")[0]
+    url_for_parse = url if (url.startswith("http://") or url.startswith("https://")) else ("http://" + url)
+    host = urlparse(url_for_parse).netloc.lower().replace("www.", "").split(":")[0]
     return 1 if host in URL_SHORTENERS else 0
 
 
@@ -90,7 +91,8 @@ def levenshtein_distance(a, b):
 
 def extract_features(url):
     """Run all checks on a URL. Returns a dict of features. This dict becomes one row in your ML training dataset."""
-    netloc = urlparse(url).netloc
+    url_for_parse = url if (url.startswith("http://") or url.startswith("https://")) else ("http://" + url)
+    netloc = urlparse(url_for_parse).netloc
     domain = netloc.replace("www.", "").split(".")[0].replace("-", "")
     dists = {b: levenshtein_distance(domain[: len(b) + 2], b) for b in BRANDS}
     best = min(dists, key=dists.get)

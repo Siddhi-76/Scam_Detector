@@ -1,6 +1,5 @@
 /* ══════════════════════════════════════════════════════════════
-   NIGRANI — Scam Detector  |  JavaScript Engine
-   3D Particle Canvas • Light/Dark Mode • PDF Generation • Scanner
+   NIGRANI — Scam Detector  |  JavaScript Engine (Tailwind/Glassmorphism)
    ══════════════════════════════════════════════════════════════ */
 
 // Global State
@@ -13,180 +12,58 @@ let scanHistory = [];
 function initTheme() {
     const savedTheme = localStorage.getItem('nigrani-theme') || 'dark';
     setTheme(savedTheme);
+    
+    const themeToggles = [document.getElementById('theme-toggle'), document.getElementById('theme-toggle-mobile')];
+    themeToggles.forEach(toggle => {
+        if(toggle) toggle.addEventListener('click', toggleTheme);
+    });
 }
 
 function toggleTheme() {
-    const currentTheme = document.documentElement.getAttribute('data-theme') || 'dark';
+    const currentTheme = document.documentElement.classList.contains('light') ? 'light' : 'dark';
     const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
     setTheme(newTheme);
 }
 
 function setTheme(theme) {
-    document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem('nigrani-theme', theme);
+    const htmlEl = document.documentElement;
+    const fabIcon = document.getElementById('fab-theme-icon');
 
-    const moonIcon = document.getElementById('moonIcon');
-    const sunIcon = document.getElementById('sunIcon');
-
-    if (moonIcon && sunIcon) {
-        if (theme === 'light') {
-            moonIcon.classList.add('hidden');
-            sunIcon.classList.remove('hidden');
-        } else {
-            sunIcon.classList.add('hidden');
-            moonIcon.classList.remove('hidden');
+    if (theme === 'light') {
+        htmlEl.classList.remove('dark');
+        htmlEl.classList.add('light');
+        if (fabIcon) fabIcon.textContent = 'dark_mode';
+        
+        // Adjust Three.js materials if they exist
+        if (window.shieldMaterial && window.coreMaterial) {
+            window.shieldMaterial.color.setHex(0x2563eb); // Tech Blue
+            window.shieldMaterial.emissive.setHex(0x2563eb);
+            window.shieldMaterial.opacity = 0.6;
+            window.coreMaterial.color.setHex(0x2563eb);
+            window.coreMaterial.opacity = 0.9;
+        }
+    } else {
+        htmlEl.classList.remove('light');
+        htmlEl.classList.add('dark');
+        if (fabIcon) fabIcon.textContent = 'light_mode';
+        
+        // Adjust Three.js materials
+         if (window.shieldMaterial && window.coreMaterial) {
+            window.shieldMaterial.color.setHex(0x00ffff);
+            window.shieldMaterial.emissive.setHex(0x00ffff);
+            window.shieldMaterial.opacity = 0.3;
+            window.coreMaterial.color.setHex(0x00ffff);
+            window.coreMaterial.opacity = 0.8;
         }
     }
+    localStorage.setItem('nigrani-theme', theme);
 }
 
-// ── 3D Background Canvas Engine ───────────────────────────────
-(function initBackground() {
-    const canvas = document.getElementById('bgCanvas');
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    let width, height, particles = [], mouse = { x: -1000, y: -1000 };
-
-    function resize() {
-        width = canvas.width = window.innerWidth;
-        height = canvas.height = window.innerHeight;
-    }
-
-    class Particle {
-        constructor() {
-            this.reset();
-        }
-        reset() {
-            this.x = Math.random() * width;
-            this.y = Math.random() * height;
-            this.z = Math.random() * 2 + 0.5;
-            this.vx = (Math.random() - 0.5) * 0.3;
-            this.vy = (Math.random() - 0.5) * 0.3;
-            this.radius = Math.random() * 1.5 + 0.5;
-            this.opacity = Math.random() * 0.4 + 0.1;
-        }
-        update() {
-            const dx = this.x - mouse.x;
-            const dy = this.y - mouse.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-            if (dist < 150) {
-                const force = (150 - dist) / 150 * 0.02;
-                this.vx += (dx / dist) * force;
-                this.vy += (dy / dist) * force;
-            }
-            this.x += this.vx;
-            this.y += this.vy;
-            this.vx *= 0.99;
-            this.vy *= 0.99;
-            if (this.x < 0 || this.x > width) this.vx *= -1;
-            if (this.y < 0 || this.y > height) this.vy *= -1;
-        }
-        draw() {
-            const isLight = document.documentElement.getAttribute('data-theme') === 'light';
-            const color = isLight ? '79, 70, 229' : '108, 99, 255';
-            ctx.beginPath();
-            ctx.arc(this.x, this.y, this.radius * this.z, 0, Math.PI * 2);
-            ctx.fillStyle = `rgba(${color}, ${this.opacity * this.z})`;
-            ctx.fill();
-        }
-    }
-
-    function init() {
-        resize();
-        const count = Math.min(Math.floor((width * height) / 8000), 120);
-        particles = [];
-        for (let i = 0; i < count; i++) {
-            particles.push(new Particle());
-        }
-    }
-
-    function drawConnections() {
-        const isLight = document.documentElement.getAttribute('data-theme') === 'light';
-        const color = isLight ? '79, 70, 229' : '108, 99, 255';
-
-        for (let i = 0; i < particles.length; i++) {
-            for (let j = i + 1; j < particles.length; j++) {
-                const dx = particles[i].x - particles[j].x;
-                const dy = particles[i].y - particles[j].y;
-                const dist = Math.sqrt(dx * dx + dy * dy);
-                if (dist < 120) {
-                    const opacity = (1 - dist / 120) * 0.12;
-                    ctx.beginPath();
-                    ctx.moveTo(particles[i].x, particles[i].y);
-                    ctx.lineTo(particles[j].x, particles[j].y);
-                    ctx.strokeStyle = `rgba(${color}, ${opacity})`;
-                    ctx.lineWidth = 0.5;
-                    ctx.stroke();
-                }
-            }
-        }
-    }
-
-    function animate() {
-        ctx.clearRect(0, 0, width, height);
-        particles.forEach(p => {
-            p.update();
-            p.draw();
-        });
-        drawConnections();
-        requestAnimationFrame(animate);
-    }
-
-    window.addEventListener('resize', init);
-    window.addEventListener('mousemove', e => {
-        mouse.x = e.clientX;
-        mouse.y = e.clientY;
-    });
-    init();
-    animate();
-})();
-
-// ── Cursor Glow & Tilt Effects ───────────────────────────────
-(function initEffects() {
-    const glow = document.getElementById('cursor-glow');
-    if (glow) {
-        let gx = 0, gy = 0, tx = 0, ty = 0;
-        document.addEventListener('mousemove', e => { tx = e.clientX; ty = e.clientY; });
-        function updateGlow() {
-            gx += (tx - gx) * 0.08; gy += (ty - gy) * 0.08;
-            glow.style.left = gx + 'px'; glow.style.top = gy + 'px';
-            requestAnimationFrame(updateGlow);
-        }
-        updateGlow();
-    }
-
-    document.querySelectorAll('[data-tilt]').forEach(card => {
-        card.addEventListener('mousemove', e => {
-            const rect = card.getBoundingClientRect();
-            const x = e.clientX - rect.left - rect.width / 2;
-            const y = e.clientY - rect.top - rect.height / 2;
-            card.style.transform = `perspective(800px) rotateX(${(-y / rect.height) * 8}deg) rotateY(${(x / rect.width) * 8}deg) scale(1.01)`;
-        });
-        card.addEventListener('mouseleave', () => {
-            card.style.transform = 'perspective(800px) rotateX(0) rotateY(0) scale(1)';
-        });
-    });
-})();
-
-// ── Counter Animation ─────────────────────────────────────────
-(function initCounters() {
-    const observer = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-            if (entry.isIntersecting) {
-                const el = entry.target;
-                const target = parseInt(el.getAttribute('data-count'));
-                let current = 0;
-                const step = Math.max(1, Math.floor(target / 40));
-                const timer = setInterval(() => {
-                    current += step;
-                    if (current >= target) { current = target; clearInterval(timer); }
-                    el.textContent = current;
-                }, 30);
-                observer.unobserve(el);
-            }
-        });
-    }, { threshold: 0.5 });
-    document.querySelectorAll('[data-count]').forEach(c => observer.observe(c));
-})();
+// Mouse tracking globally (for flashlight CSS)
+document.addEventListener('mousemove', (e) => {
+    document.documentElement.style.setProperty('--mouse-x', `${e.clientX}px`);
+    document.documentElement.style.setProperty('--mouse-y', `${e.clientY}px`);
+});
 
 // ── Scanner Logic ─────────────────────────────────────────────
 async function checkInput() {
@@ -204,7 +81,11 @@ async function checkInput() {
     currentInputText = input;
     loading.classList.remove('hidden');
     results.classList.add('hidden');
+    document.getElementById('data-modules').classList.add('hidden');
     btn.disabled = true;
+    
+    // Animate button scanning
+    btn.innerHTML = `<span class="material-symbols-outlined animate-spin">refresh</span><span>Scanning...</span>`;
 
     try {
         const response = await fetch('/check', {
@@ -223,6 +104,7 @@ async function checkInput() {
     } finally {
         loading.classList.add('hidden');
         btn.disabled = false;
+        btn.innerHTML = `<span class="material-symbols-outlined">troubleshoot</span><span>Initiate Scan</span>`;
     }
 }
 
@@ -231,67 +113,132 @@ function showResults(data) {
     const verdictIcon = document.getElementById('verdict-icon');
     const verdictText = document.getElementById('verdict-text');
     const scoreNum = document.getElementById('score-num');
-    const scoreArc = document.getElementById('score-arc');
-    const fill = document.getElementById('score-fill');
+    const scoreRing = document.getElementById('score-ring');
+    const scoreBar = document.getElementById('score-bar');
     const list = document.getElementById('reasons-list');
+    
     const mlSection = document.getElementById('ml-verdict');
     const mlPred = document.getElementById('ml-pred-text');
-    const results = document.getElementById('results');
-    const typeBadge = document.getElementById('scan-type-badge');
-
-    const verdictClass = data.verdict.toLowerCase().replace(' ', '-');
-    badge.className = verdictClass;
-    verdictIcon.innerHTML = data.score >= 60 ? '⛔' : data.score >= 30 ? '⚠️' : '✅';
-    verdictText.textContent = data.verdict;
-
-    typeBadge.textContent = (data.type || 'url').toUpperCase() + ' Analysis';
-
-    const circumference = 326.73;
-    const offset = circumference - (data.score / 100) * circumference;
-    scoreArc.style.strokeDashoffset = offset;
-
-    const scoreColor = data.score >= 60 ? 'var(--danger)' : data.score >= 30 ? 'var(--warning)' : 'var(--success)';
-    scoreArc.style.stroke = scoreColor;
-    scoreNum.style.color = scoreColor;
-    scoreNum.textContent = data.score;
-
-    fill.style.width = data.score + '%';
-    fill.style.background = scoreColor;
-
-    if (data.reasons && data.reasons.length > 0) {
-        list.innerHTML = data.reasons.map(r => `<li>${escapeHtml(r)}</li>`).join('');
-    } else {
-        list.innerHTML = '<li class="safe-reason">No threat indicators found — clean!</li>';
-    }
-
-    if (data.ml_verdict) {
-        mlSection.classList.remove('hidden');
-        mlPred.textContent = data.ml_verdict;
-        mlPred.style.color = data.ml_verdict === 'SCAM' ? 'var(--danger)' : 'var(--success)';
-    } else {
-        mlSection.classList.add('hidden');
-    }
-
+    
     const dlSection = document.getElementById('dl-verdict');
     const dlPred = document.getElementById('dl-pred-text');
     const dlConf = document.getElementById('dl-confidence');
     
+    const results = document.getElementById('results');
+    const typeBadge = document.getElementById('scan-type-badge');
+
+    // 1. Theme and Verdict Colors
+    let colorHex = '#4ade80'; // Success
+    let colorClass = 'text-[#4ade80]';
+    let bgClass = 'bg-[#0e3b2e] border-[#1a664f]';
+    let icon = 'check_circle';
+    
+    if (data.score >= 60) {
+        colorHex = '#ef4444'; // Danger
+        colorClass = 'text-error';
+        bgClass = 'bg-error-container border-error/50';
+        icon = 'cancel';
+    } else if (data.score >= 30) {
+        colorHex = '#eab308'; // Warning
+        colorClass = 'text-[#eab308]';
+        bgClass = 'bg-[#422c06] border-[#855a0c]';
+        icon = 'warning';
+    }
+
+    badge.className = `flex items-center gap-2 px-5 py-2.5 rounded-full font-code-lg font-bold interactive-button cursor-default ${bgClass} ${colorClass}`;
+    verdictIcon.textContent = icon;
+    verdictText.textContent = data.verdict.toUpperCase();
+
+    typeBadge.textContent = (data.type || 'url').toUpperCase() + ' ANALYSIS';
+
+    // 2. Score Animation
+    // Dasharray is 452.4. Max offset is 452.4 (0%), min offset is 0 (100%)
+    const circumference = 452.4;
+    const offset = circumference - (data.score / 100) * circumference;
+    scoreRing.style.strokeDashoffset = offset;
+    scoreRing.style.color = colorHex;
+    
+    scoreNum.textContent = data.score;
+    scoreNum.style.color = colorHex;
+
+    scoreBar.style.width = data.score + '%';
+    scoreBar.style.backgroundColor = colorHex;
+
+    // 3. Reasons
+    if (data.reasons && data.reasons.length > 0) {
+        list.innerHTML = data.reasons.map(r => `<li class="flex items-start gap-2"><span class="material-symbols-outlined text-sm mt-0.5 text-error">priority_high</span><span>${escapeHtml(r)}</span></li>`).join('');
+    } else {
+        list.innerHTML = `<li class="flex items-start gap-2 text-[#4ade80]"><span class="material-symbols-outlined text-sm mt-0.5">check</span><span>No threat indicators found — clean!</span></li>`;
+    }
+
+    // 4. ML / DL Models
+    if (data.ml_verdict) {
+        mlSection.classList.remove('hidden');
+        mlPred.textContent = data.ml_verdict;
+        mlPred.className = data.ml_verdict === 'SCAM' ? 'font-bold text-error' : 'font-bold text-[#4ade80]';
+    } else {
+        mlSection.classList.add('hidden');
+    }
+
     if (data.dl_verdict && data.dl_confidence) {
         dlSection.classList.remove('hidden');
         dlPred.textContent = data.dl_verdict;
-        dlPred.style.color = data.dl_verdict === 'SCAM' ? 'var(--danger)' : 'var(--success)';
+        dlPred.className = data.dl_verdict === 'SCAM' ? 'font-bold text-error' : 'font-bold text-[#4ade80]';
         dlConf.textContent = data.dl_confidence;
     } else {
-        if(dlSection) dlSection.classList.add('hidden');
+        dlSection.classList.add('hidden');
+    }
+
+    // 5. Data Modules (if URL features exist)
+    const dataModules = document.getElementById('data-modules');
+    if (data.type === 'url' && currentFeatures) {
+        dataModules.classList.remove('hidden');
+        
+        // Entropy
+        const entropy = currentFeatures.url_entropy || 0;
+        document.getElementById('mod-entropy-val').textContent = entropy.toFixed(2) + ' bits';
+        const entPct = Math.min((entropy / 5) * 100, 100);
+        document.getElementById('mod-entropy-bar').style.width = entPct + '%';
+        document.getElementById('mod-entropy-bar').className = `h-full transition-all duration-1000 ${entropy > 4.5 ? 'bg-error' : 'bg-primary-fixed'}`;
+
+        // Levenshtein
+        const lev = currentFeatures.brand_levenshtein || 0;
+        document.getElementById('mod-lev-val').textContent = lev + (lev > 5 && lev < 20 ? ' (Suspicious)' : '');
+        const levPct = Math.min((lev / 20) * 100, 100);
+        document.getElementById('mod-lev-bar').style.width = levPct + '%';
+        document.getElementById('mod-lev-bar').className = `h-full transition-all duration-1000 ${lev > 5 && lev < 20 ? 'bg-error' : 'bg-primary-fixed'}`;
+
+        // Subdomain (Network layer mock)
+        const subdomains = currentFeatures.subdomain_count || 0;
+        document.getElementById('mod-net-val').textContent = subdomains + ' Nodes';
+        document.getElementById('mod-net-bar-1').className = `h-1 flex-1 transition-all duration-1000 ${subdomains >= 1 ? 'bg-primary-fixed opacity-100' : 'bg-surface-container-high'}`;
+        document.getElementById('mod-net-bar-2').className = `h-1 flex-1 transition-all duration-1000 ${subdomains >= 2 ? (subdomains > 3 ? 'bg-error' : 'bg-primary-fixed opacity-80') : 'bg-surface-container-high'}`;
+        document.getElementById('mod-net-bar-3').className = `h-1 flex-1 transition-all duration-1000 ${subdomains >= 3 ? (subdomains > 3 ? 'bg-error' : 'bg-primary-fixed opacity-40') : 'bg-surface-container-high'}`;
+    } else {
+        dataModules.classList.add('hidden');
     }
 
     results.classList.remove('hidden');
     results.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
-function reportPhishing() {
+async function reportPhishing() {
     if (!currentInputText) return;
-    showToast("Report submitted successfully! Thank you for making the web safer.");
+    
+    try {
+        const response = await fetch('/report_phishing', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ input: currentInputText })
+        });
+        if (response.ok) {
+            showToast("Threat signature logged to database for analysis!");
+        } else {
+            showToast("Failed to log threat signature.");
+        }
+    } catch (err) {
+        showToast("Error connecting to server.");
+    }
 }
 
 // ── Report Download ───────────────────────────────────────────
@@ -352,6 +299,7 @@ async function pasteFromClipboard() {
 function clearInput() {
     document.getElementById('userInput').value = '';
     document.getElementById('results').classList.add('hidden');
+    document.getElementById('data-modules').classList.add('hidden');
     document.getElementById('userInput').focus();
 }
 
@@ -376,22 +324,30 @@ function renderHistory() {
     const container = document.getElementById('history-list');
     const clearBtn = document.getElementById('clearHistoryBtn');
     if (scanHistory.length === 0) {
-        container.innerHTML = '<div class="history-empty glass-card"><p>No scans yet.</p></div>';
+        container.innerHTML = `<div class="bg-surface-container-lowest border border-outline-variant p-8 rounded-lg text-center interactive-module text-on-surface-variant font-code-sm">No active scans in current session. Initialize scanner to build history matrix.</div>`;
         clearBtn.classList.add('hidden');
         return;
     }
     clearBtn.classList.remove('hidden');
     container.innerHTML = scanHistory.map((item, i) => {
-        const dot = item.score >= 60 ? 'dot-danger' : item.score >= 30 ? 'dot-warning' : 'dot-success';
-        return `<div class="history-item" onclick="replayHistory(${i})">
-            <div class="history-dot ${dot}"></div>
-            <div class="history-text">
-                <div class="history-input">${escapeHtml(item.input)}</div>
-                <div class="history-meta">${item.verdict} • ${item.time}</div>
+        let colorClass = 'text-[#4ade80]';
+        let bgClass = 'bg-[#4ade80]/10 border-[#4ade80]/30';
+        if (item.score >= 60) {
+            colorClass = 'text-error'; bgClass = 'bg-error/10 border-error/30';
+        } else if (item.score >= 30) {
+            colorClass = 'text-[#eab308]'; bgClass = 'bg-[#eab308]/10 border-[#eab308]/30';
+        }
+        
+        return `<div class="bg-surface-container-low border border-outline-variant p-4 rounded-lg flex justify-between items-center interactive-module cursor-pointer hover:border-primary-fixed" onclick="replayHistory(${i})">
+            <div>
+                <div class="font-code-sm text-xs ${colorClass} font-bold mb-1">${item.verdict.toUpperCase()} • ${item.time}</div>
+                <div class="text-on-surface text-sm truncate max-w-xs md:max-w-md">${escapeHtml(item.input)}</div>
             </div>
-            <div class="history-score">${item.score}</div>
+            <div class="flex items-center justify-center w-12 h-12 rounded-full border ${bgClass} ${colorClass} font-code-lg font-bold">
+                ${item.score}
+            </div>
         </div>`;
-    }).join('');
+    }).join('<div class="h-4"></div>');
 }
 
 function replayHistory(i) {
@@ -406,7 +362,7 @@ function replayHistory(i) {
 function clearHistory() {
     scanHistory = [];
     renderHistory();
-    showToast('History cleared');
+    showToast('History matrix cleared');
 }
 
 function escapeHtml(text) {
@@ -417,11 +373,29 @@ function escapeHtml(text) {
 
 function showToast(msg) {
     const toast = document.createElement('div');
-    toast.className = 'toast';
+    toast.className = 'fixed bottom-20 left-1/2 transform -translate-x-1/2 bg-surface-container-highest border border-outline-variant text-on-surface px-6 py-3 rounded-full font-code-sm z-[100] shadow-2xl animate-fade-in-up';
     toast.textContent = msg;
     document.body.appendChild(toast);
-    setTimeout(() => toast.remove(), 3000);
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translate(-50%, 20px)';
+        toast.style.transition = 'all 0.3s ease';
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
 }
+
+// Custom animation for toasts
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes fadeInUp {
+        from { opacity: 0; transform: translate(-50%, 20px); }
+        to { opacity: 1; transform: translate(-50%, 0); }
+    }
+    .animate-fade-in-up {
+        animation: fadeInUp 0.3s ease-out forwards;
+    }
+`;
+document.head.appendChild(style);
 
 document.addEventListener('DOMContentLoaded', () => {
     initTheme();

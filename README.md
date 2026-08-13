@@ -83,12 +83,23 @@ The long-term goal is to build an intelligent security assistant capable of dete
 
 ---
 
-## Web Application
+## Web Application & UI/UX
 
-* Flask backend
-* Interactive user interface
-* Responsive design
-* Real-time analysis
+* Modern, responsive interface built with HTML5, CSS3 (Tailwind-inspired), and Vanilla JS
+* Advanced WebGL/Three.js interactive 3D scanner visualization
+* Premium Glassmorphism design system
+* Built-in Theme toggling (Cybersecurity Dark Mode & Tech/Enterprise Light Mode)
+* Real-time analysis with simulated network scanning animations
+* One-click Phishing Threat Reporting and logging
+
+---
+
+## Executive PDF Reporting
+
+* Generates dynamic, downloadable PDF reports using `fpdf2`
+* Explains ML model decisions, exact feature breakdown, and entropy scores
+* Includes raw diagnostic JSON payload for security analysts
+* Ready for executive review with clean layouts and visual data representation
 
 ---
 

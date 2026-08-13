@@ -4,16 +4,17 @@ import pandas as pd
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Embedding, GlobalAveragePooling1D, Dense, Dropout
+from tensorflow.keras.layers import Embedding, Bidirectional, LSTM, Dense, Dropout
 from tensorflow.keras.preprocessing.text import Tokenizer
 from tensorflow.keras.preprocessing.sequence import pad_sequences
+from tensorflow.keras.callbacks import EarlyStopping
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report, accuracy_score
 
 # Constants
-MAX_WORDS = 5000
-MAX_LEN = 50
-EMBEDDING_DIM = 16
+MAX_WORDS = 10000
+MAX_LEN = 100
+EMBEDDING_DIM = 32
 
 def train_dl_model():
     print("Loading message dataset...")
@@ -40,7 +41,10 @@ def train_dl_model():
     # Build Model
     model = Sequential([
         Embedding(input_dim=MAX_WORDS, output_dim=EMBEDDING_DIM, input_length=MAX_LEN),
-        GlobalAveragePooling1D(),
+        Bidirectional(LSTM(64, return_sequences=True)),
+        Dropout(0.3),
+        Bidirectional(LSTM(32)),
+        Dropout(0.3),
         Dense(24, activation='relu'),
         Dropout(0.2),
         Dense(1, activation='sigmoid')
@@ -49,9 +53,19 @@ def train_dl_model():
     model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
     model.summary()
 
+    # Callbacks
+    early_stop = EarlyStopping(monitor='val_loss', patience=3, restore_best_weights=True)
+
     # Train Model
     print("Training model...")
-    model.fit(X_train, y_train, epochs=10, batch_size=32, validation_split=0.2, verbose=1)
+    model.fit(
+        X_train, y_train, 
+        epochs=15, 
+        batch_size=64, 
+        validation_split=0.2, 
+        callbacks=[early_stop],
+        verbose=1
+    )
 
     # Evaluate Model
     print("\nEvaluating model on test set...")

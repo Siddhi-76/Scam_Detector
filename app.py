@@ -78,23 +78,46 @@ def check():
             "hyphen_count", "suspicious_tld", "domain_entropy", "is_brand_lookalike"
         ]
         feat_df = pd.DataFrame([[features.get(k, 0) for k in feature_cols]], columns=feature_cols)
-        ml_pred = MODEL.predict(feat_df)[0]
-        result["ml_verdict"] = "SCAM" if ml_pred == 1 else "SAFE"
+        
+        if hasattr(MODEL, "predict_proba"):
+            ml_prob = MODEL.predict_proba(feat_df)[0][1]
+            ml_risk = round(ml_prob * 100)
+            result["ml_verdict"] = f"SCAM ({ml_risk}%)" if ml_prob > 0.5 else f"SAFE ({ml_risk}%)"
+            
+            # Blend the heuristic score with ML probability (e.g. 60% ML, 40% Heuristic)
+            blended_score = round((ml_risk * 0.6) + (result["score"] * 0.4))
+            result["score"] = blended_score
+            
+            if ml_risk > 70:
+                result["verdict"] = "DANGEROUS"
+                result["reasons"].insert(0, f"Machine Learning model flags this URL with {ml_risk}% risk.")
+            elif ml_risk < 20 and result["score"] < 40:
+                result["verdict"] = "SAFE"
+        else:
+            ml_pred = MODEL.predict(feat_df)[0]
+            result["ml_verdict"] = "SCAM" if ml_pred == 1 else "SAFE"
     elif not is_url and DL_MODEL and TOKENIZER:
         # Deep Learning Message Analysis
         seq = TOKENIZER.texts_to_sequences([user_input])
-        pad = pad_sequences(seq, maxlen=50, padding='post', truncating='post')
+        pad = pad_sequences(seq, maxlen=100, padding='post', truncating='post')
         pred_prob = DL_MODEL.predict(pad, verbose=0)[0][0]
         
-        result["dl_confidence"] = f"{pred_prob * 100:.1f}%"
-        result["dl_verdict"] = "SCAM" if pred_prob > 0.5 else "SAFE"
+        risk_percentage = round(float(pred_prob) * 100)
+        result["score"] = risk_percentage
+        result["dl_confidence"] = f"{risk_percentage}%"
         
-        # Override or enhance rule-based verdict if DL is very confident
-        if pred_prob > 0.85:
+        # Primary verdict derived directly from DL
+        if risk_percentage >= 70:
             result["verdict"] = "DANGEROUS"
-            result["reasons"].append(f"AI Deep Learning model flagged with {result['dl_confidence']} confidence.")
-        elif pred_prob < 0.15 and result["score"] < 50:
-            result["verdict"] = "LIKELY SAFE"
+            result["reasons"].insert(0, f"Deep Learning AI analyzed the semantic structure and found {risk_percentage}% scam probability.")
+        elif risk_percentage >= 40:
+            result["verdict"] = "SUSPICIOUS"
+            result["reasons"].insert(0, f"Deep Learning AI flagged some unusual patterns ({risk_percentage}% risk).")
+        else:
+            result["verdict"] = "SAFE"
+            result["reasons"] = [f"Deep Learning AI analyzed the message and confirmed it is genuine (Only {risk_percentage}% risk)."]
+            
+        result["dl_verdict"] = "SCAM" if risk_percentage > 50 else "SAFE"
 
     return jsonify(result)
 
@@ -124,9 +147,9 @@ def report():
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 5000))
     print("=" * 60)
-    print(f" 🛡️ NIGRANI Scam Detector active")
-    print(f" 🚀 Localhost URL: http://localhost:{port}")
-    print(f" 🌐 Loopback URL:  http://127.0.0.1:{port}")
+    print(f" [!] NIGRANI Scam Detector active")
+    print(f" [*] Localhost URL: http://localhost:{port}")
+    print(f" [*] Loopback URL:  http://127.0.0.1:{port}")
     print("=" * 60)
     app.run(host="0.0.0.0", port=port, debug=True, use_reloader=False)
 

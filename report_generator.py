@@ -6,6 +6,12 @@ Generates detailed threat analysis reports in PDF format.
 from datetime import datetime
 from fpdf import FPDF
 
+def sanitize_text(text):
+    """Ensure text only contains characters supported by FPDF core fonts (latin-1)."""
+    if text is None:
+        return ""
+    return str(text).encode('latin-1', 'replace').decode('latin-1')
+
 
 class NigraniReport(FPDF):
     """Custom PDF class with NIGRANI branding."""
@@ -134,7 +140,7 @@ def generate_report(user_input, analysis_result, features=None):
     pdf.set_font("Courier", "", 9)
     pdf.set_text_color(40, 40, 60)
     pdf.set_fill_color(245, 245, 250)
-    pdf.multi_cell(0, 6, str(user_input), border=1, fill=True)
+    pdf.multi_cell(0, 6, sanitize_text(user_input), border=1, fill=True)
     pdf.ln(6)
 
     # ── Verdict ────────────────────────────────────────────
@@ -143,30 +149,29 @@ def generate_report(user_input, analysis_result, features=None):
     verdict = analysis_result.get("verdict", "UNKNOWN")
     pdf.add_verdict_badge(verdict, score)
 
-    # ── ML Model Prediction ────────────────────────────────
-    ml_verdict = analysis_result.get("ml_verdict")
-    if ml_verdict:
-        pdf.add_section_title("Machine Learning Prediction")
-        if ml_verdict == "SCAM":
-            pdf.set_fill_color(255, 240, 240)
-            pdf.set_text_color(180, 30, 30)
+    # ── AI Machine Learning Analysis ───────────────────────
+    ml_confidence = analysis_result.get("dl_confidence") or analysis_result.get("ml_verdict")
+    if ml_confidence:
+        pdf.add_section_title("AI Machine Learning Analysis")
+        pdf.set_font("Courier", "B", 10)
+        pdf.set_text_color(255, 255, 255)
+        
+        is_scam = "SCAM" in str(ml_confidence).upper() or float(str(ml_confidence).replace("%","").split("(")[-1].replace(")","")) > 50 if "(" in str(ml_confidence) else ("%" in str(ml_confidence) and float(str(ml_confidence).replace("%","")) > 50)
+        
+        if is_scam:
+            pdf.set_fill_color(220, 38, 38)  # Red
         else:
-            pdf.set_fill_color(240, 255, 245)
-            pdf.set_text_color(5, 120, 80)
-        pdf.set_font("Helvetica", "B", 12)
-        pdf.cell(0, 10, f"  ML Model Prediction: {ml_verdict}  ", fill=True, new_x="LMARGIN", new_y="NEXT")
-        pdf.set_text_color(40, 40, 60)
-        pdf.set_font("Helvetica", "", 9)
-        pdf.ln(2)
-        pdf.cell(0, 6, "Prediction made by Decision Tree / Random Forest classifier trained on 100+ labelled URLs.", new_x="LMARGIN", new_y="NEXT")
-        pdf.ln(4)
+            pdf.set_fill_color(5, 150, 105)  # Green
+            
+        pdf.cell(0, 10, f"  Neural Network / ML Confidence: {sanitize_text(str(ml_confidence))}  ", fill=True, new_x="LMARGIN", new_y="NEXT")
+        pdf.ln(6)
 
     # ── Threat Indicators ──────────────────────────────────
     reasons = analysis_result.get("reasons", [])
     pdf.add_section_title("Threat Indicators")
     if reasons:
         for i, reason in enumerate(reasons, 1):
-            pdf.add_reason(i, reason)
+            pdf.add_reason(i, sanitize_text(reason))
     else:
         pdf.add_safe_note("No threat indicators detected. This input appears safe.")
     pdf.ln(4)
@@ -199,7 +204,7 @@ def generate_report(user_input, analysis_result, features=None):
             pdf.cell(50, 6, key)
             pdf.set_font("Courier", "B", 9)
             pdf.set_text_color(108, 99, 255)
-            pdf.cell(20, 6, str(value))
+            pdf.cell(20, 6, sanitize_text(value))
             pdf.set_font("Helvetica", "", 8)
             pdf.set_text_color(120, 120, 140)
             pdf.cell(0, 6, desc, new_x="LMARGIN", new_y="NEXT")

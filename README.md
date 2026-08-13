@@ -74,11 +74,12 @@ The long-term goal is to build an intelligent security assistant capable of dete
 
 ## Machine Learning
 
-* Dataset preprocessing
-* Feature extraction
-* Model training
-* Prediction generation
-* Explainable output
+* Real-world dataset processing (UCI SMS Spam Collection & OpenPhish)
+* Feature extraction (NLP tokenization & URL heuristics)
+* Deep Learning Bidirectional LSTM for NLP context analysis
+* Random Forest classification for URLs
+* Exact scam probability scoring (e.g. 92% Scam Risk)
+* Explainable AI output with dynamic PDF Reports
 
 ---
 
@@ -104,6 +105,7 @@ The long-term goal is to build an intelligent security assistant capable of dete
 ### Machine Learning
 
 * Scikit-learn
+* TensorFlow & Keras
 * Pandas
 * NumPy
 * Joblib
@@ -155,8 +157,12 @@ Scam_Detector/
 
 │── app.py
 │── url_features.py
-│── message_features.py
+│── message_feature.py
 │── ml_model.py
+│── ml_message_dl.py
+│── download_datasets.py
+│── build_feature_matrix.py
+│── report_generator.py
 │── requirements.txt
 │── README.md
 │── Procfile

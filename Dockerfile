@@ -26,5 +26,5 @@ COPY . .
 # Expose container port
 EXPOSE 5000
 
-# Run Flask application using Gunicorn for production
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "app:app"]
+# Run Flask application using Gunicorn for production (optimized for 512MB RAM free tier)
+CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "1", "--threads", "2", "--timeout", "120", "app:app"]

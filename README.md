@@ -2,6 +2,8 @@
 
 > **An AI-Powered Phishing URL & Scam Message Detection System built using Python, Flask, and Machine Learning.**
 
+**🔴 LIVE DEMO: [https://scam-detector-h3w8.onrender.com](https://scam-detector-h3w8.onrender.com)**
+
 Scam Detector is a cybersecurity-focused web application that helps identify potentially malicious URLs and scam messages using a combination of **feature engineering**, **rule-based analysis**, and **machine learning techniques**.
 
 The objective of this project is to provide users with an intuitive platform where they can analyse suspicious links or messages, understand why they are considered risky, and receive an explainable prediction rather than a simple "safe" or "unsafe" label.
